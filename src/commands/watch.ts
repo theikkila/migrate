@@ -43,18 +43,18 @@ export function _makeCurrentMigrationRunner(
         parsedSettings,
         (lockingPgClient, context) =>
           withTransaction(lockingPgClient, async () => {
-            // 1: lock graphile_migrate.current so no concurrent migrations can occur
+            // 1: lock graphile_migrate_tnt_prod.current so no concurrent migrations can occur
             await lockingPgClient.query(
-              "lock graphile_migrate.current in EXCLUSIVE mode",
+              "lock graphile_migrate_tnt_prod.current in EXCLUSIVE mode",
             );
 
-            // 2: Get last current.sql from graphile_migrate.current
+            // 2: Get last current.sql from graphile_migrate_tnt_prod.current
             const {
               rows: [previousCurrent],
             } = await lockingPgClient.query(
               `
               select *
-              from graphile_migrate.current
+              from graphile_migrate_tnt_prod.current
               where filename = 'current.sql'
             `,
             );
@@ -96,7 +96,7 @@ export function _makeCurrentMigrationRunner(
               await lockingPgClient.query("begin");
               // Re-establish a lock ASAP to continue with migration
               await lockingPgClient.query(
-                "lock graphile_migrate.current in EXCLUSIVE mode",
+                "lock graphile_migrate_tnt_prod.current in EXCLUSIVE mode",
               );
 
               // 4b: run this current (in its own independent transaction) if not empty
@@ -122,13 +122,13 @@ export function _makeCurrentMigrationRunner(
               );
             }
 
-            // 5: update graphile_migrate.current with latest content
+            // 5: update graphile_migrate_tnt_prod.current with latest content
             //   (NOTE: we update even if the minified versions don't differ since
             //    the comments may have changed.)
             await lockingPgClient.query({
               name: "current-insert",
               text: `
-              insert into graphile_migrate.current(content)
+              insert into graphile_migrate_tnt_prod.current(content)
               values ($1)
               on conflict (filename)
               do update

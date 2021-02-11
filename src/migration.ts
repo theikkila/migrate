@@ -131,7 +131,7 @@ async function verifyGraphileMigrateSchema(pgClient: Client): Promise<null> {
   const {
     rows: [graphileMigrateSchema],
   } = await pgClient.query(
-    `select oid from pg_namespace where nspname = 'graphile_migrate';`,
+    `select oid from pg_namespace where nspname = 'graphile_migrate_tnt_prod';`,
   );
   if (!graphileMigrateSchema) {
     throw new Error(
@@ -148,7 +148,7 @@ async function verifyGraphileMigrateSchema(pgClient: Client): Promise<null> {
     );
     if (!table) {
       throw new Error(
-        `You've set manageGraphileMigrateSchema to false, but the 'graphile_migrate.${tableName}' table couldn't be found - we cannot continue.`,
+        `You've set manageGraphileMigrateSchema to false, but the 'graphile_migrate_tnt_prod.${tableName}' table couldn't be found - we cannot continue.`,
       );
     }
 
@@ -158,7 +158,7 @@ async function verifyGraphileMigrateSchema(pgClient: Client): Promise<null> {
     );
     if (columns.length !== expected.columnCount) {
       throw new Error(
-        `You've set manageGraphileMigrateSchema to false, but the 'graphile_migrate.${tableName}' table has the wrong number of columns (${columns.length} != ${expected.columnCount}) - we cannot continue.`,
+        `You've set manageGraphileMigrateSchema to false, but the 'graphile_migrate_tnt_prod.${tableName}' table has the wrong number of columns (${columns.length} != ${expected.columnCount}) - we cannot continue.`,
       );
     }
   }
@@ -177,16 +177,16 @@ export async function _migrateMigrationSchema(
   }
 
   await pgClient.query(`
-    create schema if not exists graphile_migrate;
+    create schema if not exists graphile_migrate_tnt_prod;
 
-    create table if not exists graphile_migrate.migrations (
+    create table if not exists graphile_migrate_tnt_prod.migrations (
       hash text primary key,
-      previous_hash text references graphile_migrate.migrations,
+      previous_hash text references graphile_migrate_tnt_prod.migrations,
       filename text not null,
       date timestamptz not null default now()
     );
 
-    create table if not exists graphile_migrate.current (
+    create table if not exists graphile_migrate_tnt_prod.current (
       filename text primary key default 'current.sql',
       content text not null,
       date timestamptz not null default now()
@@ -282,7 +282,7 @@ export async function getLastMigration(
   const {
     rows: [row],
   } = await pgClient.query(
-    `select filename, previous_hash as "previousHash", hash, date from graphile_migrate.migrations order by filename desc limit 1`,
+    `select filename, previous_hash as "previousHash", hash, date from graphile_migrate_tnt_prod.migrations order by filename desc limit 1`,
   );
   return (row as DbMigration) || null;
 }
@@ -416,7 +416,7 @@ export async function runStringMigration(
         await pgClient.query({
           name: "migration-insert",
           text:
-            "insert into graphile_migrate.migrations(hash, previous_hash, filename) values ($1, $2, $3)",
+            "insert into graphile_migrate_tnt_prod.migrations(hash, previous_hash, filename) values ($1, $2, $3)",
           values: [hash, previousHash, filename],
         });
       }
@@ -444,7 +444,7 @@ export async function undoMigration(
     async pgClient => {
       await pgClient.query({
         name: "migration-delete",
-        text: "delete from graphile_migrate.migrations where hash = $1",
+        text: "delete from graphile_migrate_tnt_prod.migrations where hash = $1",
         values: [hash],
       });
     },
@@ -494,6 +494,6 @@ export async function reverseMigration(
 
   // Clean up graphile_migrate.current
   await pgClient.query(
-    `delete from graphile_migrate.current where filename = 'current.sql'`,
+    `delete from graphile_migrate_tnt_prod.current where filename = 'current.sql'`,
   );
 }
